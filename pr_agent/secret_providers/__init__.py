@@ -10,6 +10,9 @@ def get_secret_provider():
         if provider_id == 'google_cloud_storage':
             from pr_agent.secret_providers.google_cloud_storage_secret_provider import GoogleCloudStorageSecretProvider
             return GoogleCloudStorageSecretProvider()
+        elif provider_id == 'environment_vars':
+            from pr_agent.secret_providers.environment_vars_secret_provider import EnvironmentVarsSecretProvider
+            return EnvironmentVarsSecretProvider()
         else:
             raise ValueError(f"Unknown secret provider: {provider_id}")
     except Exception as e:
