@@ -7,8 +7,6 @@ services:
       - '7934:3000'
     networks:
       - mrai-network
-    environment:
-      - GITLAB.SHARED_SECRET=d36faa9e3ccaa2150204
 
 networks:
   mrai-network:
