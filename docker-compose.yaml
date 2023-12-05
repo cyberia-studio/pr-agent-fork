@@ -1,0 +1,16 @@
+services:
+  mrai-app:
+    image: codiumai/pr-agent:gitlab_webhook
+    container_name: mrai-app
+    restart: always
+    ports:
+      - '7934:3000'
+    networks:
+      - mrai-network
+    environment:
+      - GITLAB.SHARED_SECRET=d36faa9e3ccaa2150204
+
+networks:
+  mrai-network:
+    name: mrai-network
+    driver: bridge
