@@ -1,5 +1,6 @@
 .idea/
 venv/
+pr_agent/settings/configuration.toml
 pr_agent/settings/.secrets.toml
 __pycache__
 dist/
