@@ -7,6 +7,8 @@ services:
       - '7934:3000'
     networks:
       - mrai-network
+    environment:
+      GITLAB_SHARED_SECRET: ${GITLAB_SHARED_SECRET}
 
 networks:
   mrai-network:
