@@ -34,7 +34,7 @@ async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
     log_context = {"server_type": "gitlab_app"}
     if request.headers.get("X-Gitlab-Token") and secret_provider:
         request_token = request.headers.get("X-Gitlab-Token")
-        secret = secret_provider.get_secret(request_token)
+        secret = secret_provider.get_secret("GITLAB.SHARED_SECRET")
         try:
             secret_dict = json.loads(secret)
             gitlab_token = secret_dict["gitlab_token"]
