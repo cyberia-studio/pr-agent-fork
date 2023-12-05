@@ -41,7 +41,7 @@ Specific instructions:
 - Assume there is additional relevant code, that is not included in the diff.
 
 ## Custom instructions
-- Don't suggest to add unit tests, logging, php-docs or other doc definitions in code.
+- Don't suggest to add unit tests, logging, php-docs.
 
 
 
