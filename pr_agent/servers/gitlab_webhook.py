@@ -33,7 +33,7 @@ def handle_request(background_tasks: BackgroundTasks, url: str, body: str, log_c
 async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
     log_context = {"server_type": "gitlab_app"}
     request_token = request.headers.get("X-Gitlab-Token")
-    if request.headers.get("X-Gitlab-Token") and secret_provider:
+    if request_token and secret_provider:
         stored_secret = secret_provider.get_secret("GITLAB_SHARED_SECRET")
         if not request_token == stored_secret:
             get_logger().error(f"Failed to validate X-Gitlab-Token with settings GITLAB_SHARED_SECRET")
@@ -52,10 +52,13 @@ async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
         return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
                             content=jsonable_encoder({"message": "unauthorized"}))
 
-    gitlab_token = get_settings().get("GITLAB.PERSONAL_ACCESS_TOKEN", None)
+    gitlab_token = secret_provider.get_secret("GITLAB_PAT")
     if not gitlab_token:
-        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
-                            content=jsonable_encoder({"message": "unauthorized"}))
+        gitlab_token = get_settings().get("GITLAB.PERSONAL_ACCESS_TOKEN", None)
+        if not gitlab_token:
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
+                                content=jsonable_encoder({"message": "unauthorized"}))
+
     data = await request.json()
     get_logger().info(json.dumps(data))
     if data.get('object_kind') == 'merge_request' and data['object_attributes'].get('action') in ['open', 'reopen']:
