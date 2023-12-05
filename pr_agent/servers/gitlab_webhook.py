@@ -32,29 +32,30 @@ def handle_request(background_tasks: BackgroundTasks, url: str, body: str, log_c
 @router.post("/webhook")
 async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
     log_context = {"server_type": "gitlab_app"}
+    request_token = request.headers.get("X-Gitlab-Token")
     if request.headers.get("X-Gitlab-Token") and secret_provider:
-        request_token = request.headers.get("X-Gitlab-Token")
-        secret = secret_provider.get_secret("GITLAB_SHARED_SECRET")
-        try:
-            secret_dict = json.loads(secret)
-            gitlab_token = secret_dict["gitlab_token"]
-            log_context["sender"] = secret_dict.get("token_name", secret_dict.get("id", "unknown"))
-            context["settings"] = copy.deepcopy(global_settings)
-            context["settings"].gitlab.personal_access_token = gitlab_token
-        except Exception as e:
-            get_logger().error(f"Failed to validate secret {request_token}: {e}")
-            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
+        stored_secret = secret_provider.get_secret("GITLAB_SHARED_SECRET")
+        if not request_token == stored_secret:
+            get_logger().error(f"Failed to validate X-Gitlab-Token with settings GITLAB_SHARED_SECRET")
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
+                                content=jsonable_encoder({"message": "unauthorized"}))
+
     elif get_settings().get("GITLAB.SHARED_SECRET"):
-        secret = get_settings().get("GITLAB.SHARED_SECRET")
-        if not request.headers.get("X-Gitlab-Token") == secret:
+        stored_secret = get_settings().get("GITLAB.SHARED_SECRET")
+        if not request_token == stored_secret:
             get_logger().error(f"Failed to validate X-Gitlab-Token with settings GITLAB.SHARED_SECRET")
-            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
+            return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
+                                content=jsonable_encoder({"message": "unauthorized"}))
+
     else:
         get_logger().error(f"Failed to validate secret. Fallback.")
-        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
+        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
+                            content=jsonable_encoder({"message": "unauthorized"}))
+
     gitlab_token = get_settings().get("GITLAB.PERSONAL_ACCESS_TOKEN", None)
     if not gitlab_token:
-        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
+        return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED,
+                            content=jsonable_encoder({"message": "unauthorized"}))
     data = await request.json()
     get_logger().info(json.dumps(data))
     if data.get('object_kind') == 'merge_request' and data['object_attributes'].get('action') in ['open', 'reopen']:
@@ -73,6 +74,7 @@ async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
 @router.get("/")
 async def root():
     return {"status": "ok"}
+
 
 def start():
     gitlab_url = get_settings().get("GITLAB.URL", None)
