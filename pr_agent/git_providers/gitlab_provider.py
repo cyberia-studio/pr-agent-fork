@@ -12,11 +12,15 @@ from ..algo.utils import load_large_diff, clip_tokens
 from ..config_loader import get_settings
 from .git_provider import EDIT_TYPE, FilePatchInfo, GitProvider
 from ..log import get_logger
+from pr_agent.secret_providers import get_secret_provider
+
+secret_provider = get_secret_provider() if get_settings().get("CONFIG.SECRET_PROVIDER") else None
 
 
 class DiffNotFoundError(Exception):
     """Raised when the diff for a merge request cannot be found."""
     pass
+
 
 class GitLabProvider(GitProvider):
 
@@ -26,7 +30,10 @@ class GitLabProvider(GitProvider):
             raise ValueError("GitLab URL is not set in the config file")
         gitlab_access_token = get_settings().get("GITLAB.PERSONAL_ACCESS_TOKEN", None)
         if not gitlab_access_token:
-            raise ValueError("GitLab personal access token is not set in the config file")
+            gitlab_access_token = secret_provider.get_secret("GITLAB_PAT")
+            if not gitlab_access_token:
+                raise ValueError("GitLab personal access token is not set in the config file")
+
         self.gl = gitlab.Gitlab(
             url=gitlab_url,
             oauth_token=gitlab_access_token
@@ -44,7 +51,8 @@ class GitLabProvider(GitProvider):
         self.incremental = incremental
 
     def is_supported(self, capability: str) -> bool:
-        if capability in ['get_issue_comments', 'create_inline_comment', 'publish_inline_comments']: # gfm_markdown is supported in gitlab !
+        if capability in ['get_issue_comments', 'create_inline_comment',
+                          'publish_inline_comments']:  # gfm_markdown is supported in gitlab !
             return False
         return True
 
@@ -61,7 +69,6 @@ class GitLabProvider(GitProvider):
         except IndexError as e:
             get_logger().error(f"Could not get diff for merge request {self.id_mr}")
             raise DiffNotFoundError(f"Could not get diff for merge request {self.id_mr}") from e
-
 
     def _get_pr_file_content(self, file_path: str, branch: str) -> str:
         try:
@@ -181,8 +188,9 @@ class GitLabProvider(GitProvider):
     def create_inline_comments(self, comments: list[dict]):
         raise NotImplementedError("Gitlab provider does not support publishing inline comments yet")
 
-    def send_inline_comment(self,body: str,edit_type: str,found: bool,relevant_file: str,relevant_line_in_file: int,
-                            source_line_no: int, target_file: str,target_line_no: int) -> None:
+    def send_inline_comment(self, body: str, edit_type: str, found: bool, relevant_file: str,
+                            relevant_line_in_file: int,
+                            source_line_no: int, target_file: str, target_line_no: int) -> None:
         if not found:
             get_logger().info(f"Could not find position for {relevant_file} {relevant_line_in_file}")
         else:
@@ -194,7 +202,8 @@ class GitLabProvider(GitProvider):
             pos_obj = {'position_type': 'text',
                        'new_path': target_file.filename,
                        'old_path': target_file.old_filename if target_file.old_filename else target_file.filename,
-                       'base_sha': diff.base_commit_sha, 'start_sha': diff.start_commit_sha, 'head_sha': diff.head_commit_sha}
+                       'base_sha': diff.base_commit_sha, 'start_sha': diff.start_commit_sha,
+                       'head_sha': diff.head_commit_sha}
             if edit_type == 'deletion':
                 pos_obj['old_line'] = source_line_no - 1
             elif edit_type == 'addition':
@@ -237,7 +246,7 @@ class GitLabProvider(GitProvider):
                         if file.filename == relevant_file:
                             target_file = file
                             break
-                range = relevant_lines_end - relevant_lines_start # no need to add 1
+                range = relevant_lines_end - relevant_lines_start  # no need to add 1
                 body = body.replace('```suggestion', f'```suggestion:-0+{range}')
                 lines = target_file.head_file.splitlines()
                 relevant_line_in_file = lines[relevant_lines_start - 1]
@@ -343,7 +352,8 @@ class GitLabProvider(GitProvider):
 
     def get_repo_settings(self):
         try:
-            contents = self.gl.projects.get(self.id_project).files.get(file_path='.pr_agent.toml', ref=self.mr.target_branch).decode()
+            contents = self.gl.projects.get(self.id_project).files.get(file_path='.pr_agent.toml',
+                                                                       ref=self.mr.target_branch).decode()
             return contents
         except Exception:
             return ""
@@ -429,7 +439,6 @@ class GitLabProvider(GitProvider):
         else:
             link = f"https://gitlab.com/codiumai/pr-agent/-/blob/{self.mr.source_branch}/{relevant_file}?ref_type=heads#L{relevant_line_start}"
         return link
-
 
     def generate_link_to_relevant_line_number(self, suggestion) -> str:
         try:
