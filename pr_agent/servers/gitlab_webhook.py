@@ -47,8 +47,10 @@ async def gitlab_webhook(background_tasks: BackgroundTasks, request: Request):
     elif get_settings().get("GITLAB.SHARED_SECRET"):
         secret = get_settings().get("GITLAB.SHARED_SECRET")
         if not request.headers.get("X-Gitlab-Token") == secret:
+            get_logger().error(f"Failed to validate X-Gitlab-Token with settings GITLAB.SHARED_SECRET")
             return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
     else:
+        get_logger().error(f"Failed to validate secret. Fallback.")
         return JSONResponse(status_code=status.HTTP_401_UNAUTHORIZED, content=jsonable_encoder({"message": "unauthorized"}))
     gitlab_token = get_settings().get("GITLAB.PERSONAL_ACCESS_TOKEN", None)
     if not gitlab_token:
