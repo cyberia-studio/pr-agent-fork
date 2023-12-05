@@ -40,6 +40,10 @@ Specific instructions:
 - Provide the exact line numbers range (inclusive) for each suggestion.
 - Assume there is additional relevant code, that is not included in the diff.
 
+## Custom instructions
+- Don't suggest to add unit tests, logging, php-docs or other doc definitions in code.
+
+
 
 {%- if extra_instructions %}
 
